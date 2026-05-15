@@ -2,6 +2,28 @@
 * sweetalert2 v7.33.1
 * Released under the MIT License.
 */
+function getSwalDocument() {
+  try {
+    let currentWindow = window;
+
+    while (currentWindow !== window.top) {
+      const container = currentWindow.frameElement;
+      if (container && container.nodeName === 'FRAME') {
+        return currentWindow.document;
+      }
+      if (container && container.nodeName === 'IFRAME') {
+        currentWindow = currentWindow.parent;
+      } else {
+        break;
+      }
+    }
+    return currentWindow.document;
+    
+  } catch (e) {
+    return document;
+  }
+}
+
 (function (global, factory) {
 	typeof exports === 'object' && typeof module !== 'undefined' ? module.exports = factory() :
 	typeof define === 'function' && define.amd ? define(factory) :
@@ -392,7 +414,7 @@ var contains = function contains(haystack, needle) {
 };
 
 var getContainer = function getContainer() {
-  return document.body.querySelector('.' + swalClasses.container);
+  return getSwalDocument().body.querySelector('.' + swalClasses.container);
 };
 
 var elementByClass = function elementByClass(className) {
@@ -468,10 +490,10 @@ var getFocusableElements = function getFocusableElements() {
   });
 };
 var isModal = function isModal() {
-  return !isToast() && !document.body.classList.contains(swalClasses['no-backdrop']);
+  return !isToast() && !getSwalDocument().body.classList.contains(swalClasses['no-backdrop']);
 };
 var isToast = function isToast() {
-  return document.body.classList.contains(swalClasses['toast-shown']);
+  return getSwalDocument().body.classList.contains(swalClasses['toast-shown']);
 };
 var isLoading = function isLoading() {
   return getPopup().hasAttribute('data-loading');
@@ -493,7 +515,7 @@ var init = function init(params) {
 
   if (c) {
     c.parentNode.removeChild(c);
-    removeClass([document.documentElement, document.body], [swalClasses['no-backdrop'], swalClasses['toast-shown'], swalClasses['has-column']]);
+    removeClass([getSwalDocument().documentElement, getSwalDocument().body], [swalClasses['no-backdrop'], swalClasses['toast-shown'], swalClasses['has-column']]);
   }
   /* istanbul ignore if */
 
@@ -503,11 +525,18 @@ var init = function init(params) {
     return;
   }
 
-  var container = document.createElement('div');
-  container.className = swalClasses.container;
-  container.innerHTML = sweetHTML;
-  var targetElement = typeof params.target === 'string' ? document.querySelector(params.target) : params.target;
+var targetDoc = getSwalDocument();
+var container = targetDoc.createElement('div');
+container.className = swalClasses.container;
+container.innerHTML = sweetHTML;
+var targetElement = targetDoc.body;
+if (targetElement) {
   targetElement.appendChild(container);
+} else {
+  targetDoc.documentElement.appendChild(container);
+}
+console.log('Modale ajouté dans :', targetDoc);
+
   var popup = getPopup();
   var content = getContent();
   var input = getChildByClass(content, swalClasses.input);
@@ -524,9 +553,9 @@ var init = function init(params) {
   if (!params.toast) {
     popup.setAttribute('aria-modal', 'true');
   } // RTL
-
-
-  if (window.getComputedStyle(targetElement).direction === 'rtl') {
+  
+  if (targetElement instanceof Element &&
+    window.getComputedStyle(targetElement).direction === 'rtl') {
     addClass(getContainer(), swalClasses.rtl);
   }
 
@@ -592,7 +621,7 @@ var animationEndEvent = function () {
     return false;
   }
 
-  var testEl = document.createElement('div');
+  var testEl = getSwalDocument().createElement('div');
   var transEndEventNames = {
     'WebkitAnimation': 'webkitAnimationEnd',
     'OAnimation': 'oAnimationEnd oanimationend',
@@ -617,13 +646,13 @@ var measureScrollbar = function measureScrollbar() {
     return 0;
   }
 
-  var scrollDiv = document.createElement('div');
+  var scrollDiv = getSwalDocument().createElement('div');
   scrollDiv.style.width = '50px';
   scrollDiv.style.height = '50px';
   scrollDiv.style.overflow = 'scroll';
-  document.body.appendChild(scrollDiv);
+  getSwalDocument().body.appendChild(scrollDiv);
   var scrollbarWidth = scrollDiv.offsetWidth - scrollDiv.clientWidth;
-  document.body.removeChild(scrollDiv);
+  getSwalDocument().body.removeChild(scrollDiv);
   return scrollbarWidth;
 };
 
@@ -763,7 +792,7 @@ var renderProgressSteps = function renderProgressSteps(params) {
     }
 
     params.progressSteps.forEach(function (step, index) {
-      var circle = document.createElement('li');
+      var circle = getSwalDocument().createElement('li');
       addClass(circle, swalClasses.progresscircle);
       circle.innerHTML = step;
 
@@ -774,7 +803,7 @@ var renderProgressSteps = function renderProgressSteps(params) {
       progressStepsContainer.appendChild(circle);
 
       if (index !== params.progressSteps.length - 1) {
-        var line = document.createElement('li');
+        var line = getSwalDocument().createElement('li');
         addClass(line, swalClasses.progressline);
 
         if (params.progressStepsDistance) {
@@ -810,15 +839,15 @@ var fixScrollbar = function fixScrollbar() {
   } // if the body has overflow
 
 
-  if (document.body.scrollHeight > window.innerHeight) {
+  if (getSwalDocument().body.scrollHeight > window.innerHeight) {
     // add padding so the content doesn't shift after removal of scrollbar
-    states.previousBodyPadding = parseInt(window.getComputedStyle(document.body).getPropertyValue('padding-right'));
-    document.body.style.paddingRight = states.previousBodyPadding + measureScrollbar() + 'px';
+    states.previousBodyPadding = parseInt(window.getComputedStyle(getSwalDocument().body).getPropertyValue('padding-right'));
+    getSwalDocument().body.style.paddingRight = states.previousBodyPadding + measureScrollbar() + 'px';
   }
 };
 var undoScrollbar = function undoScrollbar() {
   if (states.previousBodyPadding !== null) {
-    document.body.style.paddingRight = states.previousBodyPadding;
+    getSwalDocument().body.style.paddingRight = states.previousBodyPadding;
     states.previousBodyPadding = null;
   }
 };
@@ -828,20 +857,20 @@ var undoScrollbar = function undoScrollbar() {
 var iOSfix = function iOSfix() {
   var iOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
 
-  if (iOS && !hasClass(document.body, swalClasses.iosfix)) {
-    var offset = document.body.scrollTop;
-    document.body.style.top = offset * -1 + 'px';
-    addClass(document.body, swalClasses.iosfix);
+  if (iOS && !hasClass(getSwalDocument().body, swalClasses.iosfix)) {
+    var offset = getSwalDocument().body.scrollTop;
+    getSwalDocument().body.style.top = offset * -1 + 'px';
+    addClass(getSwalDocument().body, swalClasses.iosfix);
   }
 };
 /* istanbul ignore next */
 
 var undoIOSfix = function undoIOSfix() {
-  if (hasClass(document.body, swalClasses.iosfix)) {
-    var offset = parseInt(document.body.style.top, 10);
-    removeClass(document.body, swalClasses.iosfix);
-    document.body.style.top = '';
-    document.body.scrollTop = offset * -1;
+  if (hasClass(getSwalDocument().body, swalClasses.iosfix)) {
+    var offset = parseInt(getSwalDocument().body.style.top, 10);
+    removeClass(getSwalDocument().body, swalClasses.iosfix);
+    getSwalDocument().body.style.top = '';
+    getSwalDocument().body.scrollTop = offset * -1;
   }
 };
 
@@ -883,7 +912,7 @@ var undoIEfix = function undoIEfix() {
 // reader’s list of elements (headings, form controls, landmarks, etc.) in the document.
 
 var setAriaHidden = function setAriaHidden() {
-  var bodyChildren = toArray(document.body.children);
+  var bodyChildren = toArray(getSwalDocument().body.children);
   bodyChildren.forEach(function (el) {
     if (el === getContainer() || contains(el, getContainer())) {
       return;
@@ -897,7 +926,7 @@ var setAriaHidden = function setAriaHidden() {
   });
 };
 var unsetAriaHidden = function unsetAriaHidden() {
-  var bodyChildren = toArray(document.body.children);
+  var bodyChildren = toArray(getSwalDocument().body.children);
   bodyChildren.forEach(function (el) {
     if (el.hasAttribute('data-previous-aria-hidden')) {
       el.setAttribute('aria-hidden', el.getAttribute('data-previous-aria-hidden'));
@@ -919,8 +948,8 @@ var restoreActiveElement = function restoreActiveElement() {
       if (globalState.previousActiveElement && globalState.previousActiveElement.focus) {
         globalState.previousActiveElement.focus();
         globalState.previousActiveElement = null;
-      } else if (document.body) {
-        document.body.focus();
+      } else if (getSwalDocument().body) {
+        getSwalDocument().body.focus();
       }
 
       resolve();
@@ -969,7 +998,7 @@ var close = function close(onClose, onAfterClose) {
       container.parentNode.removeChild(container);
     }
 
-    removeClass([document.documentElement, document.body], [swalClasses.shown, swalClasses['height-auto'], swalClasses['no-backdrop'], swalClasses['toast-shown'], swalClasses['toast-column']]);
+    removeClass([getSwalDocument().documentElement, getSwalDocument().body], [swalClasses.shown, swalClasses['height-auto'], swalClasses['no-backdrop'], swalClasses['toast-shown'], swalClasses['toast-column']]);
 
     if (isModal()) {
       undoScrollbar();
@@ -1285,14 +1314,14 @@ var queue = function queue(steps) {
 
   var resetQueue = function resetQueue() {
     currentSteps = [];
-    document.body.removeAttribute('data-swal2-queue-step');
+    getSwalDocument().body.removeAttribute('data-swal2-queue-step');
   };
 
   var queueResult = [];
   return new Promise(function (resolve) {
     (function step(i, callback) {
       if (i < currentSteps.length) {
-        document.body.setAttribute('data-swal2-queue-step', i);
+        getSwalDocument().body.setAttribute('data-swal2-queue-step', i);
         swal(currentSteps[i]).then(function (result) {
           if (typeof result.value !== 'undefined') {
             queueResult.push(result.value);
@@ -1318,7 +1347,7 @@ var queue = function queue(steps) {
  */
 
 var getQueueStep = function getQueueStep() {
-  return document.body.getAttribute('data-swal2-queue-step');
+  return getSwalDocument().body.getAttribute('data-swal2-queue-step');
 };
 /*
  * Global function for inserting a popup to the queue
@@ -1797,7 +1826,7 @@ function setParameters(params) {
   } // Determine if the custom target element is valid
 
 
-  if (!params.target || typeof params.target === 'string' && !document.querySelector(params.target) || typeof params.target !== 'string' && !params.target.appendChild) {
+  if (!params.target || typeof params.target === 'string' && !getSwalDocument().querySelector(params.target) || typeof params.target !== 'string' && !params.target.appendChild) {
     warn('Target parameter is not valid, defaulting to "body"');
     params.target = 'body';
   } // Animation
@@ -1809,7 +1838,7 @@ function setParameters(params) {
 
   var popup;
   var oldPopup = getPopup();
-  var targetElement = typeof params.target === 'string' ? document.querySelector(params.target) : params.target; // If the model target has changed, refresh the popup
+  var targetElement = typeof params.target === 'string' ? getSwalDocument().querySelector(params.target) : params.target; // If the model target has changed, refresh the popup
 
   if (oldPopup && targetElement && oldPopup.parentNode !== targetElement.parentNode) {
     popup = init(params);
@@ -1850,7 +1879,7 @@ function setParameters(params) {
   if (typeof params.backdrop === 'string') {
     getContainer().style.background = params.backdrop;
   } else if (!params.backdrop) {
-    addClass([document.documentElement, document.body], swalClasses['no-backdrop']);
+    addClass([getSwalDocument().documentElement, getSwalDocument().body], swalClasses['no-backdrop']);
   }
 
   if (!params.backdrop && params.allowOutsideClick) {
@@ -1886,7 +1915,7 @@ function setParameters(params) {
   popup.className = swalClasses.popup;
 
   if (params.toast) {
-    addClass([document.documentElement, document.body], swalClasses['toast-shown']);
+    addClass([getSwalDocument().documentElement, getSwalDocument().body], swalClasses['toast-shown']);
     addClass(popup, swalClasses.toast);
   } else {
     addClass(popup, swalClasses.modal);
@@ -1959,10 +1988,10 @@ var openPopup = function openPopup(params) {
     container.style.overflowY = 'auto';
   }
 
-  addClass([document.documentElement, document.body, container], swalClasses.shown);
+  addClass([getSwalDocument().documentElement, getSwalDocument().body, container], swalClasses.shown);
 
   if (params.heightAuto && params.backdrop && !params.toast) {
-    addClass([document.documentElement, document.body], swalClasses['height-auto']);
+    addClass([getSwalDocument().documentElement, getSwalDocument().body], swalClasses['height-auto']);
   }
 
   if (isModal()) {
@@ -2380,9 +2409,9 @@ function _main(userParams) {
     _this.resetValidationMessage();
 
     if (innerParams.toast && (innerParams.input || innerParams.footer || innerParams.showCloseButton)) {
-      addClass(document.body, swalClasses['toast-column']);
+      addClass(getSwalDocument().body, swalClasses['toast-column']);
     } else {
-      removeClass(document.body, swalClasses['toast-column']);
+      removeClass(getSwalDocument().body, swalClasses['toast-column']);
     } // inputs
 
 
@@ -2484,7 +2513,7 @@ function _main(userParams) {
           select.innerHTML = '';
 
           if (innerParams.inputPlaceholder) {
-            var placeholder = document.createElement('option');
+            var placeholder = getSwalDocument().createElement('option');
             placeholder.innerHTML = innerParams.inputPlaceholder;
             placeholder.value = '';
             placeholder.disabled = true;
@@ -2496,7 +2525,7 @@ function _main(userParams) {
             inputOptions.forEach(function (inputOption) {
               var optionValue = inputOption[0];
               var optionLabel = inputOption[1];
-              var option = document.createElement('option');
+              var option = getSwalDocument().createElement('option');
               option.value = optionValue;
               option.innerHTML = optionLabel;
 
@@ -2522,8 +2551,8 @@ function _main(userParams) {
             inputOptions.forEach(function (inputOption) {
               var radioValue = inputOption[0];
               var radioLabel = inputOption[1];
-              var radioInput = document.createElement('input');
-              var radioLabelElement = document.createElement('label');
+              var radioInput = getSwalDocument().createElement('input');
+              var radioLabelElement = getSwalDocument().createElement('label');
               radioInput.type = 'radio';
               radioInput.name = swalClasses.radio;
               radioInput.value = radioValue;
@@ -2532,7 +2561,7 @@ function _main(userParams) {
                 radioInput.checked = true;
               }
 
-              var label = document.createElement('span');
+              var label = getSwalDocument().createElement('span');
               label.innerHTML = radioLabel;
               label.className = swalClasses.label;
               radioLabelElement.appendChild(radioInput);
