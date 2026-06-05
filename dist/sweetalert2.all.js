@@ -4,21 +4,24 @@
 */
 function getSwalDocument() {
   try {
-    let currentWindow = window;
+	var rootParentWindow = window;
+	  while (rootParentWindow != rootParentWindow.parent && rootParentWindow.parent) {
+	    if (rootParentWindow.name === 'rightIFrame') {
+	      break;
+	    }
 
-    while (currentWindow !== window.top) {
-      const container = currentWindow.frameElement;
-      if (container && container.nodeName === 'FRAME') {
-        return currentWindow.document;
-      }
-      if (container && container.nodeName === 'IFRAME') {
-        currentWindow = currentWindow.parent;
-      } else {
-        break;
-      }
-    }
-    return currentWindow.document;
-    
+	    if (rootParentWindow.name === 'psmain') {
+	      break;
+	    }
+
+	    if (rootParentWindow.name === 'psworkspace') {
+	      break;
+	    }
+
+	    rootParentWindow = rootParentWindow.parent;
+	  }
+	  return rootParentWindow.document;
+  
   } catch (e) {
     return document;
   }
@@ -535,7 +538,6 @@ if (targetElement) {
 } else {
   targetDoc.documentElement.appendChild(container);
 }
-console.log('Modale ajouté dans :', targetDoc);
 
   var popup = getPopup();
   var content = getContent();
